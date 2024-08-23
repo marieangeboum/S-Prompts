@@ -14,6 +14,7 @@ for some einops/einsum fun
 Hacked together by / Copyright 2020, Ross Wightman
 """
 import math
+import timm
 import logging
 from functools import partial
 from collections import OrderedDict
@@ -23,7 +24,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint
 
-from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD, IMAGENET_INCEPTION_MEAN, IMAGENET_INCEPTION_STD
+from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD, IMAGENET_INCEPTION_MEAN, IMAGENET_INCEPTION_STD, OPENAI_CLIP_MEAN, OPENAI_CLIP_STD
 from timm.models.helpers import build_model_with_cfg, resolve_pretrained_cfg, named_apply, adapt_input_conv, checkpoint_seq
 from timm.models.layers import PatchEmbed, Mlp, DropPath, trunc_normal_, lecun_normal_
 from timm.models.registry import register_model
@@ -95,7 +96,7 @@ default_cfgs = {
         url='https://storage.googleapis.com/vit_models/augreg/'
             'L_16-i21k-300ep-lr_0.001-aug_medium1-wd_0.1-do_0.1-sd_0.1--imagenet2012-steps_20k-lr_0.01-res_384.npz',
         input_size=(3, 384, 384), crop_pct=1.0),
-
+    
     'vit_large_patch14_224': _cfg(url=''),
     'vit_huge_patch14_224': _cfg(url=''),
     'vit_giant_patch14_224': _cfg(url=''),
@@ -153,7 +154,6 @@ default_cfgs = {
         url='https://dl.fbaipublicfiles.com/dino/dino_vitbase8_pretrain/dino_vitbase8_pretrain.pth',
         mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD, num_classes=0),
 
-
     # ViT ImageNet-21K-P pretraining by MILL
     'vit_base_patch16_224_miil_in21k': _cfg(
         url='https://miil-public-eu.oss-eu-central-1.aliyuncs.com/model-zoo/ImageNet_21K_P/models/timm/vit_base_patch16_224_in21k_miil.pth',
@@ -164,11 +164,38 @@ default_cfgs = {
             '/vit_base_patch16_224_1k_miil_84_4.pth',
         mean=(0, 0, 0), std=(1, 1, 1), crop_pct=0.875, interpolation='bilinear',
     ),
-
+    'vit_base_patch16_224_remote_sensing': _cfg(
+        url='file:///d/maboum/S-Prompts/models/vit-b-checkpoint-1599.pth' ,
+        input_size=(3, 224, 224), crop_pct=1.0),
     # experimental
     'vit_small_patch16_36x1_224': _cfg(url=''),
     'vit_small_patch16_18x2_224': _cfg(url=''),
     'vit_base_patch16_18x2_224': _cfg(url=''),
+
+    'vit_base_patch32_clip_224.laion2b': _cfg(
+        hf_hub_id='laion/CLIP-ViT-B-32-laion2B-s34B-b79K',
+        hf_hub_filename='open_clip_pytorch_model.bin',
+        mean=OPENAI_CLIP_MEAN, std=OPENAI_CLIP_STD, num_classes=512),
+    'vit_base_patch16_clip_224.laion2b': _cfg(
+        hf_hub_id='laion/CLIP-ViT-B-16-laion2B-s34B-b88K',
+        hf_hub_filename='open_clip_pytorch_model.bin',
+        mean=OPENAI_CLIP_MEAN, std=OPENAI_CLIP_STD, crop_pct=1.0, num_classes=512),
+    'vit_large_patch14_clip_224.laion2b': _cfg(
+        hf_hub_id='laion/CLIP-ViT-L-14-laion2B-s32B-b82K',
+        hf_hub_filename='open_clip_pytorch_model.bin',
+        mean=IMAGENET_INCEPTION_MEAN, std=IMAGENET_INCEPTION_STD, crop_pct=1.0, num_classes=768),
+    'vit_huge_patch14_clip_224.laion2b': _cfg(
+        hf_hub_id='laion/CLIP-ViT-H-14-laion2B-s32B-b79K',
+        hf_hub_filename='open_clip_pytorch_model.bin',
+        mean=OPENAI_CLIP_MEAN, std=OPENAI_CLIP_STD, crop_pct=1.0, num_classes=1024),
+    'vit_giant_patch14_clip_224.laion2b': _cfg(
+        hf_hub_id='laion/CLIP-ViT-g-14-laion2B-s12B-b42K',
+        hf_hub_filename='open_clip_pytorch_model.bin',
+        mean=OPENAI_CLIP_MEAN, std=OPENAI_CLIP_STD, crop_pct=1.0, num_classes=1024),
+    'vit_gigantic_patch14_clip_224.laion2b': _cfg(
+        hf_hub_id='laion/CLIP-ViT-bigG-14-laion2B-39B-b160k',
+        hf_hub_filename='open_clip_pytorch_model.bin',
+        mean=OPENAI_CLIP_MEAN, std=OPENAI_CLIP_STD, crop_pct=1.0, num_classes=1280)
 }
 
 
@@ -652,8 +679,21 @@ def _create_vision_transformer(variant, pretrained=False, **kwargs):
         pretrained_filter_fn=checkpoint_filter_fn,
         pretrained_custom_load='npz' in pretrained_cfg['url'],
         **kwargs)
+    # model_path = 'models/vit-b-checkpoint-1599.pth'
+    # state_dict = torch.load(model_path, map_location='cuda')
+    
+    # model = timm.create_model('vit_base_patch16_224', pretrained=False)
+    # model.load_state_dict(state_dict)
     return model
 
+@register_model
+def vit_base_patch16_224_remote_sensing(pretrained=False, **kwargs):
+    """ ViT-Base (ViT-B/16) from original paper (https://arxiv.org/abs/2010.11929).
+    Weights taken from: https://github.com/ViTAE-Transformer/Remote-Sensing-RVSA
+    """
+    model_kwargs = dict(patch_size=16, embed_dim=768, depth=12, num_heads=12, qkv_bias=False, **kwargs)
+    model = _create_vision_transformer('vit_base_patch16_224_remote_sensing', pretrained=pretrained, **model_kwargs)
+    return model
 
 @register_model
 def vit_tiny_patch16_224(pretrained=False, **kwargs):

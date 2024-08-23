@@ -10,7 +10,7 @@ def count_parameters(model, trainable=False):
 
 
 def tensor2numpy(x):
-    return x.cpu().data.numpy() if x.is_cuda else x.data.numpy()
+    return x.cpu().data.numpy() if hasattr(x, 'is_cuda') and x.is_cuda else x.data.numpy()
 
 
 def target2onehot(targets, n_classes):
@@ -57,9 +57,6 @@ def split_images_labels(imgs):
 
     return np.array(images), np.array(labels)
 
-
-
-
 def accuracy_domain(y_pred, y_true, nb_old, increment=2, class_num=1):
     assert len(y_pred) == len(y_true), 'Data length error.'
     all_acc = {}
@@ -75,7 +72,7 @@ def accuracy_domain(y_pred, y_true, nb_old, increment=2, class_num=1):
     idxes = np.where(y_true < nb_old)[0]
     all_acc['old'] = 0 if len(idxes) == 0 else np.around(((y_pred[idxes]%class_num) == (y_true[idxes]%class_num)).sum()*100 / len(idxes),decimals=2)
 
-    # New accuracy
+    # New accuracy 
     idxes = np.where(y_true >= nb_old)[0]
     all_acc['new'] = np.around(((y_pred[idxes]%class_num) == (y_true[idxes]%class_num)).sum()*100 / len(idxes), decimals=2)
 

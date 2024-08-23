@@ -184,7 +184,7 @@ class CORE50(object):
         else:
             train_y = self.labels[scen][run][batch]
 
-        train_y = np.asarray(train_y, dtype=np.int)
+        train_y = np.asarray(train_y, dtype=int)
 
         # Update state for next iter
         self.batch += 1
@@ -211,7 +211,7 @@ class CORE50(object):
             test_x = self.get_batch_from_paths(test_paths).astype(np.float32)
 
         test_y = self.labels[scen][run][-1]
-        test_y = np.asarray(test_y, dtype=np.int)
+        test_y = np.asarray(test_y, dtype=int)
 
         return test_x, test_y
 

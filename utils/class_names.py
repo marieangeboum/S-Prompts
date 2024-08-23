@@ -1,3 +1,117 @@
+# flair1_zones_classnames = {
+#     0: "AA",
+#     1: 'AF',
+#     2: 'AN',
+#     3: 'AU',
+#     4: 'FA',
+#     5: 'FF',
+#     6: 'FN',
+#     7: 'FU',
+#     8: 'NA',
+#     9: 'NF',
+#     10: 'NN',
+#     11: 'NU',
+#     12: 'UA',
+#     13: 'UF',
+#     14: 'UH',
+#     15: 'UN',
+#     16: 'UU',
+#     17: 'UV'}
+
+flair1_classnames_dept_traj = {
+    0: "UU",
+    1: 'NN', 
+    2: 'UN',
+    3: 'NU',
+}
+flair1_binary_classnames = {
+    0: "no building",
+    1: "building", 
+    }
+
+# flair1_classnames = {
+#     1 : "building", 
+#     2 : "pervious surface",
+#     3 : " impervious surface",
+#     4 : "bare soil",
+#     5 : "water",
+#     6 : "coniferous", 
+#     7 : "deciduous",
+#     8 : "brushwood", 
+#     9 : "vineyard", 
+#     10 : "herbaceous vegetation",
+#     11 : "agricultural land",
+#     12 : "plowed land", 
+#     13 : "swimming pool", 
+#     14 : "snow", 
+#     15 : "clear-cut", 
+#     16 : "ligneous", 
+#     17 : "mixed", 
+#     18 : "greenhouse"}
+
+# flair1_classnames = {
+#     0 : "building", 
+#     1 : "pervious surface",
+#     2 : " impervious surface",
+#     3 : "bare soil",
+#     4 : "water",
+#     5 : "coniferous", 
+#     6 : "deciduous",
+#     7 : "brushwood", 
+#     8 : "vineyard", 
+#     9 : "herbaceous vegetation",
+#     10 : "agricultural land",
+#     11 : "plowed land", 
+#     12 : "swimming pool", 
+#     13 : "snow", 
+#     14 : "clear-cut", 
+#     15 : "ligneous", 
+#     16 : "mixed", 
+#     17 : "greenhouse"}
+
+flair1_classnames = {
+    0 : "building", 
+    1 : "pervious surface",
+    2 : "impervious surface",
+    3 : "bare soil",
+    4 : "water",
+    5 : "coniferous", 
+    6 : "deciduous",
+    7 : "brushwood", 
+    8 : "vineyard", 
+    9 : "herbaceous vegetation",
+    10 : "agricultural land",
+    11 : "plowed land", 
+    12 : "other"}
+
+# flair1_class_classnames = {
+#     1 : "anthropized 1",
+#     2 : "anthropized 2",
+#     3 : "anthropized 3",
+#     4 : "natural 1",
+#     5 : "natural 2",
+#     6 : "vegetation 1", 
+#     7 : "vegetation 2",
+#     8 : "vegetation 3", 
+#     9 : "agricultural 1", 
+#     10 : "herbaceous 1",
+#     11 : "agricultural 2",
+#     12 : "agricultural 3", 
+#     13 : "anthropized 4", 
+#     14 : "natural 3", 
+#     15 : "vegetation 4", 
+#     16 : "vegetation 5", 
+#     17 : "vegetation 6", 
+#     18 : "anthropized 5"}
+
+flair1_custom_classnames = {
+    1 : "anthropized", 
+    2 : "natural",
+    3 : "vegetation",
+    4 : "agricultural",
+    5 : "herbeceous"}
+
+
 core50_classnames = {
     0: "plug adapter 1",
     1: "plug adapter 2",

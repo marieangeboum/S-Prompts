@@ -12,6 +12,15 @@ batch_size = 64
 
 
 class BaseLearner(object):
+    """
+    Properties:
+
+    exemplar_size: Returns the number of exemplars stored in memory.
+    samples_per_class: Returns the number of samples per class to be stored in memory.
+    feature_dim: Returns the dimension of the feature vectors extracted from the network.
+    
+    
+    """
     def __init__(self, args):
         self._cur_task = -1
         self._known_classes = 0
@@ -19,8 +28,7 @@ class BaseLearner(object):
         self._network = None
         self._old_network = None
         self._data_memory, self._targets_memory = np.array([]), np.array([])
-        self.topk = 5
-
+        self.topk = 1
         self._memory_size = args['memory_size']
         self._memory_per_class = args['memory_per_class']
         self._fixed_memory = args['fixed_memory']
@@ -48,6 +56,14 @@ class BaseLearner(object):
             return self._network.feature_dim
 
     def build_rehearsal_memory(self, data_manager, per_class):
+        """
+        Construct the examplar memory used for reahaersal during IL process
+        if memory is fixed : 
+            it constructs examplars for all known classes
+        else if it's not :
+            it reduces the number of known classes in the memory and 
+            constructs examplars for new classes       
+        """
         if self._fixed_memory:
             self._construct_exemplar_unified(data_manager, per_class)
         else:
@@ -55,6 +71,9 @@ class BaseLearner(object):
             self._construct_exemplar(data_manager, per_class)
 
     def save_checkpoint(self, filename):
+        """ 
+        Saves the current model checkpoint to file
+        """
         self._network.cpu()
         save_dict = {
             'tasks': self._cur_task,
@@ -76,6 +95,11 @@ class BaseLearner(object):
         return ret
 
     def eval_task(self):
+        """
+        Evaluate the model's perf on the current task
+        Calls 'eval_cnn' and  '_eval_nme' methods to evaluate the model's
+        performance  CNN et NME classifiers ?
+        """
         y_pred, y_true = self._eval_cnn(self.test_loader)
         cnn_accy = self._evaluate(y_pred, y_true)
 
@@ -94,12 +118,19 @@ class BaseLearner(object):
         pass
 
     def _get_memory(self):
+        """
+        Retrieves the exemplar memory if it exists.
+        """
+        
         if len(self._data_memory) == 0:
             return None
         else:
             return (self._data_memory, self._targets_memory)
 
     def _compute_accuracy(self, model, loader):
+        """
+        Computes the accuracy of the model on a given DataLoader.
+        """
         model.eval()
         correct, total = 0, 0
         for i, (_, inputs, targets) in enumerate(loader):
@@ -109,23 +140,28 @@ class BaseLearner(object):
             predicts = torch.max(outputs, dim=1)[1]
             correct += (predicts.cpu() == targets).sum()
             total += len(targets)
-
         return np.around(tensor2numpy(correct)*100 / total, decimals=2)
 
-    def _eval_cnn(self, loader):
-        self._network.eval()
-        y_pred, y_true = [], []
-        for _, (_, inputs, targets) in enumerate(loader):
-            inputs = inputs.to(self._device)
-            with torch.no_grad():
-                outputs = self._network(inputs)['logits']
-            predicts = torch.topk(outputs, k=self.topk, dim=1, largest=True, sorted=True)[1]  # [bs, topk]
-            y_pred.append(predicts.cpu().numpy())
-            y_true.append(targets.cpu().numpy())
+    # def _eval_cnn(self, loader):
+    #     """
+    #     Evaluates the CNN model
+    #     """
+    #     self._network.eval()
+    #     y_pred, y_true = [], []
+    #     for _, (_, inputs, targets) in enumerate(loader):
+    #         inputs = inputs.to(self._device)
+    #         with torch.no_grad():
+    #             outputs = self._network(inputs)['logits']
+    #         predicts = torch.topk(outputs, k=self.topk, dim=1, largest=True, sorted=True)[1]  # [bs, topk]
+    #         y_pred.append(predicts.cpu().numpy())
+    #         y_true.append(targets.cpu().numpy())
 
-        return np.concatenate(y_pred), np.concatenate(y_true)  # [N, topk]
+    #     return np.concatenate(y_pred), np.concatenate(y_true)  # [N, topk]
 
     def _eval_nme(self, loader, class_means):
+        """
+        Evaluates ...
+        """
         self._network.eval()
         vectors, y_true = self._extract_vectors(loader)
         vectors = (vectors.T / (np.linalg.norm(vectors.T, axis=0) + EPSILON)).T
@@ -136,14 +172,17 @@ class BaseLearner(object):
         return np.argsort(scores, axis=1)[:, :self.topk], y_true  # [N, topk]
 
     def _extract_vectors(self, loader):
+        """
+        Extracts features from a network
+        """
         self._network.eval()
         vectors, targets = [], []
-        for _, _inputs, _targets in loader:
+        for _, _data, _targets in loader:
             _targets = _targets.numpy()
             if isinstance(self._network, nn.DataParallel):
-                _vectors = tensor2numpy(self._network.module.extract_vector(_inputs.to(self._device)))
+                _vectors = tensor2numpy(self._network.module.extract_vector(_data.to(self._device)))
             else:
-                _vectors = tensor2numpy(self._network.extract_vector(_inputs.to(self._device)))
+                _vectors = tensor2numpy(self._network.extract_vector(_data.to(self._device)))
 
             vectors.append(_vectors)
             targets.append(_targets)
@@ -151,6 +190,9 @@ class BaseLearner(object):
         return np.concatenate(vectors), np.concatenate(targets)
 
     def _reduce_exemplar(self, data_manager, m):
+        """
+        
+        """
         logging.info('Reducing exemplars...({} per classes)'.format(m))
         dummy_data, dummy_targets = copy.deepcopy(self._data_memory), copy.deepcopy(self._targets_memory)
         self._class_means = np.zeros((self._total_classes, self.feature_dim))
@@ -220,6 +262,7 @@ class BaseLearner(object):
         _class_means = np.zeros((self._total_classes, self.feature_dim))
 
         # Calculate the means of old classes with newly trained network
+        # At step 0 data_memory is empty so this loop is obsolete
         for class_idx in range(self._known_classes):
             mask = np.where(self._targets_memory == class_idx)[0]
             class_data, class_targets = self._data_memory[mask], self._targets_memory[mask]
@@ -236,18 +279,22 @@ class BaseLearner(object):
 
         # Construct exemplars for new classes and calculate the means
         for class_idx in range(self._known_classes, self._total_classes):
+            # retrieves data and labels for a specific class from a dataset
             data, targets, class_dset = data_manager.get_dataset(np.arange(class_idx, class_idx+1), source='train',
                                                                  mode='test', ret_data=True)
+            # line of code sets up a DataLoader for the class_dset dataset
             class_loader = DataLoader(class_dset, batch_size=batch_size, shuffle=False, num_workers=4)
-
+            # Extract features from class loader 
             vectors, _ = self._extract_vectors(class_loader)
+            # standardize vectors features
             vectors = (vectors.T / (np.linalg.norm(vectors.T, axis=0) + EPSILON)).T
             class_mean = np.mean(vectors, axis=0)
 
             # Select
             selected_exemplars = []
             exemplar_vectors = []
-            for k in range(1, m+1):
+            for k in range(1, m+1): # whats m ?
+                
                 S = np.sum(exemplar_vectors, axis=0)  # [feature_dim] sum of selected exemplars vectors
                 mu_p = (vectors + S) / k  # [n, feature_dim] sum to all vectors
                 i = np.argmin(np.sqrt(np.sum((class_mean - mu_p) ** 2, axis=1)))
@@ -273,9 +320,7 @@ class BaseLearner(object):
             vectors = (vectors.T / (np.linalg.norm(vectors.T, axis=0) + EPSILON)).T
             mean = np.mean(vectors, axis=0)
             mean = mean / np.linalg.norm(mean)
-
             _class_means[class_idx, :] = mean
-
         self._class_means = _class_means
 
     def _get_exemplar_with_class_idxes(self, class_idx):

@@ -69,9 +69,9 @@ class SiNet(nn.Module):
     def __init__(self, args):
         super(SiNet, self).__init__()
         self._device = args['device'][0]
-        model_kwargs = dict(patch_size=16, embed_dim=args["embd_dim"], depth=12, num_heads=12)
-        # a changer pour avoir
-        self.image_encoder =_create_vision_transformer('vit_tiny_patch16_224', pretrained=True, **model_kwargs)
+        model_kwargs = dict(patch_size=14, embed_dim=args["embd_dim"], depth=24, num_heads=16)
+        self.image_encoder =_create_vision_transformer('vit_large_patch14_224', pretrained=True, **model_kwargs)
+
         if args["dataset"] == "cddb":
             self.class_num = 2
             # initialisation du pool de classifieurs
@@ -90,10 +90,10 @@ class SiNet(nn.Module):
         else:
             raise ValueError('Unknown datasets: {}.'.format(args["dataset"]))
         # initialisation des prompts pool
-        # self.prompt_pool = nn.ModuleList([
-        #     nn.Linear(args["embd_dim"], args["prompt_length"], bias=False)
-        #     for i in range(args["total_sessions"])
-        # ])
+        self.prompt_pool = nn.ModuleList([
+            nn.Linear(args["embd_dim"], args["prompt_length"], bias=False)
+            for i in range(args["total_sessions"])
+        ])
 
         self.numtask = 0
 
@@ -110,9 +110,9 @@ class SiNet(nn.Module):
 
     def forward(self, image):
         logits = []
-        # image_features = self.image_encoder(image, self.prompt_pool[self.numtask-1].weight)
-        image_features = self.image_encoder(image)
-        for prompts in [self.classifier_pool[0]]:
+        image_features = self.image_encoder(image, self.prompt_pool[self.numtask-1].weight)
+        # image_features = self.image_encoder(image)
+        for prompts in [self.classifier_pool[self.numtask-1]]:
             logits.append(prompts(image_features))
 
         return {
@@ -122,8 +122,8 @@ class SiNet(nn.Module):
 
     def interface(self, image, selection):
        
-        # instance_batch = torch.stack([i.weight for i in self.prompt_pool], 0)[selection, :, :]
-        # image_features = self.image_encoder(image, instance_batch)
+        instance_batch = torch.stack([i.weight for i in self.prompt_pool], 0)[selection, :, :]
+        image_features = self.image_encoder(image, instance_batch)
         image_features = self.image_encoder(image)
         logits = []
         for prompt in self.classifier_pool:

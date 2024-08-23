@@ -3,7 +3,7 @@ import torch.nn as nn
 import copy
 
 from models.clip.prompt_learner import cfgc, load_clip_to_cpu, TextEncoder, PromptLearner
-from utils.class_names import core50_classnames, domainnet_classnames, cddb_classnames
+from utils.class_names import core50_classnames, domainnet_classnames, cddb_classnames, flair1_binary_classnames, flair1_classnames_dept_traj
 
 
 class SliNet(nn.Module):
@@ -20,12 +20,20 @@ class SliNet(nn.Module):
         self.dtype = clip_model.dtype
 
         self.class_num = 1
+        
         if args["dataset"] == "cddb":
             self.classifier_pool = nn.ModuleList([
                 PromptLearner(self.cfg, list(cddb_classnames.values()), self.clip_model)
                 for i in range(args["total_sessions"])
             ])
             self.class_num = 2
+        elif args["dataset"] == "flair":
+            self.classifier_pool = nn.ModuleList([
+                PromptLearner(self.cfg, list(flair1_classnames_dept_traj.values()), self.clip_model)
+                for i in range(args["total_sessions"])
+            ])
+            self.class_num = 4
+
         elif args["dataset"] == "domainnet":
             self.classifier_pool = nn.ModuleList([
                 PromptLearner(self.cfg, list(domainnet_classnames.values()), self.clip_model)
@@ -47,8 +55,6 @@ class SliNet(nn.Module):
         ])
 
         # self.instance_keys = nn.Linear(768, 10, bias=False)
-
-
         self.numtask = 0
 
     @property
@@ -94,7 +100,6 @@ class SliNet(nn.Module):
             selectedlogit.append(logits[idx][self.class_num*ii:self.class_num*ii+self.class_num])
         selectedlogit = torch.stack(selectedlogit)
         return selectedlogit
-
 
     def update_fc(self, nb_classes):
         self.numtask +=1
