@@ -42,15 +42,15 @@ class DataManager(object):
     
     def _setup_data(self, dataset_name, shuffle, seed):
         idata = _get_idata(dataset_name, self.args)
-        # idata.download_data()
-        idata.download_data_segmentation()
+        idata.download_data()
+        # idata.download_data_segmentation()
 
         # Data
-        # self._train_data, self._train_targets = idata.train_data, idata.train_targets
-        # self._test_data, self._test_targets = idata.test_data, idata.
-        self._train_data, self._train_targets = idata.train_data_paths, idata.train_target_paths
-        self._test_data, self._test_targets = idata.test_data_paths, idata.test_target_paths
-        self._val_data, self._val_targets = idata.val_data_paths, idata.val_target_paths
+        self._train_data, self._train_targets = idata.train_data, idata.train_targets
+        self._test_data, self._test_targets = idata.test_data, idata.
+        # self._train_data, self._train_targets = idata.train_data_paths, idata.train_target_paths
+        # self._test_data, self._test_targets = idata.test_data_paths, idata.test_target_paths
+        # self._val_data, self._val_targets = idata.val_data_paths, idata.val_target_paths
 
         self.use_path = idata.use_path
         
@@ -70,19 +70,14 @@ class DataManager(object):
         logging.info(self._class_order)
 
         # Map indices
-        # self._train_targets = _map_new_class_index(self._train_targets, self._class_order)
-        # self._test_targets = _map_new_class_index(self._test_targets, self._class_order)
+        self._train_targets = _map_new_class_index(self._train_targets, self._class_order)
+        self._test_targets = _map_new_class_index(self._test_targets, self._class_order)
 
     def get_task_size(self, task):
         return self._increments[task]
 
     def get_dataset(self, indices, source, mode, appendent=None, ret_data=False):
-        # if source == 'train':
-        #     x, y = self._train_data, self._train_targets
-        # elif source == 'test':
-        #     x, y = self._test_data, self._test_targets
-        # else:
-        #     raise ValueError('Unknown data source {}.'.format(source))
+
         if source == 'train':
             x, y = self._train_data, self._train_targets
             fixed_crop = False
@@ -105,30 +100,30 @@ class DataManager(object):
             raise ValueError('Unknown mode {}.'.format(mode))
 
         data, targets = [], []
-        # for idx in indices:
-        #     class_data, class_targets = self._select(x, y, low_range=idx, high_range=idx+1)
-        #     data.append(class_data)
-        #     targets.append(class_targets)
-        #
-        # if appendent is not None and len(appendent) != 0:
-        #     appendent_data, appendent_targets = appendent
-        #     data.append(appendent_data)
-        #     targets.append(appendent_targets)
-        #
-        # data, targets = np.concatenate(data), np.concatenate(targets)
+        for idx in indices:
+            class_data, class_targets = self._select(x, y, low_range=idx, high_range=idx+1)
+            data.append(class_data)
+            targets.append(class_targets)
 
-        for item1, item2 in zip(x, y):
-            data.append(FlairDs(image_path=item1[0], label_path=item2[0], task_id=item1[1],
-                                   tile = Window(col_off=0, row_off=0, width=512, height=512),
-                                   fixed_crops = fixed_crop,
-                                   crop_size = 224,
-                                   crop_step = 224))
+        if appendent is not None and len(appendent) != 0:
+            appendent_data, appendent_targets = appendent
+            data.append(appendent_data)
+            targets.append(appendent_targets)
 
-        dataset = ConcatDataset(data)
+        data, targets = np.concatenate(data), np.concatenate(targets)
+
+        # for item1, item2 in zip(x, y):
+        #     data.append(FlairDs(image_path=item1[0], label_path=item2[0], task_id=item1[1],
+        #                            tile = Window(col_off=0, row_off=0, width=512, height=512),
+        #                            fixed_crops = fixed_crop,
+        #                            crop_size = 224,
+        #                            crop_step = 224))
+        #
+        # dataset = ConcatDataset(data)
         if ret_data: 
-            return data, dataset
+            return data, targets, DummyDataset(data, targets, trsf, self.use_path)
         else:
-            return dataset
+            return DummyDataset(data, targets, trsf, self.use_path)
 
     def get_anchor_dataset(self, mode, appendent=None, ret_data=False):
         if mode == 'train':

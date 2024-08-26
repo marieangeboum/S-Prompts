@@ -62,6 +62,8 @@ class SPrompts(BaseLearner):
                                        num_workers=self.num_workers)
         val_dataset = data_manager.get_dataset(np.arange(self._known_classes, self._total_classes), source='val',
                                                  mode='val')
+        self.val_loader =  DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False,
+                                       num_workers=self.num_workers)
         # idem avec le jeu de test
         test_dataset = data_manager.get_dataset(np.arange(0, self._total_classes), source='test', mode='test')
         self.test_loader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False,
@@ -71,7 +73,7 @@ class SPrompts(BaseLearner):
         self._train(self.train_loader, self.test_loader) # Et là on appelle cette fonction pour lancer l'entraînement
         self.clustering(self.train_loader)  # clustering sur les features des données d'inputs
 
-    def _train(self, train_loader, test_loader):
+    def _train(self, train_loader, val_loader, test_loader):
         self._network.to(self._device)
         if self._old_network is not None:
             self._old_network.to(self._device)
@@ -98,20 +100,20 @@ class SPrompts(BaseLearner):
             optimizer = optim.SGD(self._network.parameters(), momentum=0.9,lr=self.init_lr,weight_decay=self.init_weight_decay)
             scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer,T_max=self.init_epoch)
             self.run_epoch = self.init_epoch
-            self.train_function(train_loader,test_loader,optimizer,scheduler)
+            self.train_function(train_loader,val_loader,test_loader,optimizer,scheduler)
         else:
             optimizer = optim.SGD(self._network.parameters(), momentum=0.9,lr=self.lrate,weight_decay=self.weight_decay)
             scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer,T_max=self.epochs)
             self.run_epoch = self.epochs
-            self.train_function(train_loader, test_loader, optimizer, scheduler)
+            self.train_function(train_loader, val_loader, test_loader, optimizer, scheduler)
 
-    def train_function(self, train_loader, test_loader, optimizer, scheduler):
+    def train_function(self, train_loader, val_loader, test_loader, optimizer, scheduler):
         prog_bar = tqdm(range(self.run_epoch))
         for _, epoch in enumerate(prog_bar):
             self._network.eval()
             losses = 0.
-            correct, total = 0, 0
-            for i, (_, inputs, targets) in enumerate(train_loader):
+            correct, total = 0,0
+            for i, batch in enumerate(train_loader):
                 inputs, targets = inputs.to(self._device), targets.to(self._device)
                 mask = (targets >= self._known_classes).nonzero().view(-1)
                 inputs = torch.index_select(inputs, 0, mask)
@@ -127,6 +129,10 @@ class SPrompts(BaseLearner):
                 _, preds = torch.max(logits, dim=1)
                 correct += preds.eq(targets.expand_as(preds)).cpu().sum()
                 total += len(targets)
+            # for i, batch in enumerate(val_loader) :
+            #     inputs = (batch['image'][:,:3,:,:]/255.).to(self._device)
+            #     targets = (batch['mask']).to(self._device)
+
 
             scheduler.step()
             train_acc = np.around(tensor2numpy(correct) * 100 / total, decimals=2)
