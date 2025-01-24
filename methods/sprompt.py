@@ -53,7 +53,7 @@ class SPrompts(BaseLearner):
         # donne l'indice de la session en cours pour récuperer le classifieur et les prompts associés
         self._network.update_fc(self._total_classes) # c'est quoi total_classes
         logging.info('Learning on {}-{}'.format(self._known_classes, self._total_classes))
-        # récupère les données d'entrainement : retourne le dataloader dummydataset
+        # récupère les données d'entrainement : retourne le dataloader dummydatasetd
         train_dataset = data_manager.get_dataset(np.arange(self._known_classes, self._total_classes), source='train',
                                                  mode='train')
 
@@ -113,13 +113,13 @@ class SPrompts(BaseLearner):
             self._network.eval()
             losses = 0.
             correct, total = 0,0
-            for i, batch in enumerate(train_loader):
+            for  i, (_, inputs, targets) in enumerate(train_loader):
                 inputs, targets = inputs.to(self._device), targets.to(self._device)
                 mask = (targets >= self._known_classes).nonzero().view(-1)
                 inputs = torch.index_select(inputs, 0, mask)
                 targets = torch.index_select(targets, 0, mask)-self._known_classes
 
-                logits = self._network(inputs)['masks']
+                logits = self._network(inputs)['logits']
                 loss = F.cross_entropy(logits, targets)
                 optimizer.zero_grad()
                 loss.backward()

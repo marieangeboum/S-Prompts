@@ -47,7 +47,7 @@ class DataManager(object):
 
         # Data
         self._train_data, self._train_targets = idata.train_data, idata.train_targets
-        self._test_data, self._test_targets = idata.test_data, idata.
+        self._test_data, self._test_targets = idata.test_data, idata.test_targets
         # self._train_data, self._train_targets = idata.train_data_paths, idata.train_target_paths
         # self._test_data, self._test_targets = idata.test_data_paths, idata.test_target_paths
         # self._val_data, self._val_targets = idata.val_data_paths, idata.val_target_paths
